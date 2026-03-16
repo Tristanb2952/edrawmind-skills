@@ -6,7 +6,7 @@ argument-hint: "描述您想创建的思维导图主题，或提供 Markdown 内
 
 # EdrawMind（万兴脑图）思维导图生成技能
 
-通过 MCP 工具 `markdown_to_mindmap`，将自然语言主题或已有 Markdown 文档转化为思维导图。生成后返回在线编辑链接和缩略图预览，可在 **EdrawMind**（万兴脑图）网页端打开编辑，也可导出为 `.emmx` 格式在桌面端使用。
+通过 MCP server `edrawmind-mcp` 提供的 `markdown_to_mindmap` 工具，将自然语言主题或已有 Markdown 文档转化为思维导图。生成后返回在线编辑链接和缩略图预览，可在 **EdrawMind**（万兴脑图）网页端打开编辑，也可导出为 `.emmx` 格式在桌面端使用。
 
 ## 快速参考
 
@@ -35,7 +35,9 @@ argument-hint: "描述您想创建的思维导图主题，或提供 Markdown 内
 
 ## Step 2 — 调用 MCP 工具
 
-调用 `markdown_to_mindmap`，参数如下：
+调用 MCP server `edrawmind-mcp` 提供的 `markdown_to_mindmap` 工具，参数如下：
+
+> **注意：** 不同 Agent 平台的工具名称格式可能不同。在 VS Code / GitHub Copilot 中工具名为 `mcp_edrawmind-mcp_markdown_to_mindmap`，在其他平台中通常为 `markdown_to_mindmap`。请根据实际环境中可用的工具名称进行调用。
 
 | 参数 | 类型 | 必填 | 说明 |
 |-----|------|:----:|-----|
