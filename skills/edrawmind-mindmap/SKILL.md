@@ -183,16 +183,19 @@ argument-hint: "描述您想创建的思维导图主题，或提供 Markdown 内
 
 ## Step 6 — 执行脚本生成思维导图
 
-将准备好的 Markdown 内容写入临时文件，根据前几步确定的参数拼接命令行，在终端执行：
+将准备好的 Markdown 内容通过 `--text` 参数直接传给脚本，根据前几步确定的参数拼接命令行，在终端执行：
 
 ```
-python ./scripts/edrawmind_cli.py [OPTIONS] <FILE | ->
+python ./scripts/edrawmind_cli.py --text "<MARKDOWN内容>" [OPTIONS]
 ```
+
+**`--text` 中的换行用 `\n` 表示。** 无需创建临时文件。
 
 **关键选项：**
 
 | CLI 选项 | 对应参数 | 说明 |
 |---------|---------|------|
+| `--text MARKDOWN` | — | **必选**，Markdown 内容，换行用 `\n` |
 | `--layout N` | `layout_type` | 布局类型 1–12 |
 | `--theme N` | `theme_style` | 主题风格 1–10 |
 | `--background BG` | `background` | 背景 1–15 或 `#RRGGBB` |
@@ -204,16 +207,13 @@ python ./scripts/edrawmind_cli.py [OPTIONS] <FILE | ->
 **调用示例：**
 ```bash
 # 基本生成
-python ./scripts/edrawmind_cli.py input.md
+python ./scripts/edrawmind_cli.py --text "# AI技术\n## 机器学习\n- 监督学习\n- 无监督学习\n## 深度学习\n- CNN\n- Transformer"
 
 # 指定布局和主题
-python ./scripts/edrawmind_cli.py --layout 7 --theme 9 --background 4 timeline.md
+python ./scripts/edrawmind_cli.py --text "# 项目管理\n## 阶段一\n- 需求分析\n## 阶段二\n- 开发联调" --layout 7 --theme 3
 
 # 手绘风格
-python ./scripts/edrawmind_cli.py --line-hand-drawn --fill pencil --background 9 notes.md
-
-# 从 stdin 读取
-echo "# AI\n## ML\n- Deep Learning" | python ./scripts/edrawmind_cli.py -
+python ./scripts/edrawmind_cli.py --text "# 读书笔记\n## 第一章\n- 要点一\n- 要点二" --line-hand-drawn --fill pencil --background 9
 ```
 
 **脚本输出：** 成功时输出 `file_url`（在线编辑链接）和 `thumbnail_url`（缩略图），使用 `--json` 可获取完整 JSON 响应。
@@ -222,7 +222,6 @@ echo "# AI\n## ML\n- Deep Learning" | python ./scripts/edrawmind_cli.py -
 - **成功标志**：输出中包含 `✓ Mind map generated successfully!` 及 `Edit URL:` 字段
 - **失败标志**：输出中包含 `✗`（错误符号）或 `Connection failed`
 - **终端输出含历史记录时**：只关注最后一次命令对应的输出段落。只要能在输出中找到本次命令的成功标志，**不得重复执行脚本**，直接使用找到的 `Edit URL` 展示给用户
-- **真正无法判断结果时**：先检查临时文件是否仍存在，若已被删除说明脚本未成功执行，再重试一次
 
 > 完整 CLI 参数说明参见 [CLI 工具参考](./references/tool-reference.md)。
 

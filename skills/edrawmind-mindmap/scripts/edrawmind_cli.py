@@ -556,8 +556,8 @@ def _build_parser() -> argparse.ArgumentParser:
         description=textwrap.dedent("""\
             Convert Markdown to a professional mind map via the EdrawMind API.
 
-            Reads Markdown from a file or stdin (-), sends it to the EdrawMind
-            API, and prints the online editing URL.
+            Reads Markdown from --text, a file, or stdin (-), sends it to the
+            EdrawMind API, and prints the online editing URL.
         """),
         epilog=textwrap.dedent(f"""\
             layout types (--layout):
@@ -570,11 +570,11 @@ def _build_parser() -> argparse.ArgumentParser:
               {_FILL_HELP}
 
             examples:
+              %(prog)s --text "# AI\\n## ML\\n- Deep Learning"
+              %(prog)s --text "# AI\\n## ML\\n- DL" --layout 7 --theme 9
               %(prog)s notes.md
-              %(prog)s --layout 7 --theme 9 timeline.md
               %(prog)s --line-hand-drawn --fill pencil --background 9 sketch.md
               echo "# AI\\n## ML\\n- DL" | %(prog)s -
-              %(prog)s --open --json -o result.json input.md
         """),
 
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -583,7 +583,17 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "file",
         metavar="FILE",
-        help='Markdown file to convert, or "-" to read from stdin.',
+        nargs="?",
+        default=None,
+        help='Markdown file to convert, or "-" to read from stdin. '
+             'Not needed when --text is used.',
+    )
+    parser.add_argument(
+        "--text",
+        metavar="MARKDOWN",
+        dest="text",
+        help='Inline Markdown content. Supports literal "\\n" for newlines. '
+             'Mutually exclusive with FILE.',
     )
 
     # ── Styling options ──────────────────────────────────────────────────────
@@ -726,7 +736,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         api_url = _resolve_api_url()
 
     # ── Read input ───────────────────────────────────────────────────────────
-    text = _read_input(args.file)
+    if args.text and args.file:
+        _die("Cannot use both --text and FILE. Choose one.")
+    if args.text:
+        text = args.text.replace("\\n", "\n")
+        if not text.strip():
+            _die("--text content is empty.")
+    elif args.file:
+        text = _read_input(args.file)
+    else:
+        _die("No input provided. Use --text or specify a FILE (or - for stdin).")
 
     # ── Validate ─────────────────────────────────────────────────────────────
     if not args.no_validate:
