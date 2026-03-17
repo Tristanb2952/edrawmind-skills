@@ -32,9 +32,12 @@ import argparse
 import json
 import os
 import re
+import socket
 import ssl
 import sys
 import textwrap
+import threading
+import time
 import urllib.error
 import urllib.request
 import webbrowser
@@ -50,10 +53,11 @@ from typing import NoReturn, Optional, Sequence
 __version__ = "1.0.0"
 __author__ = "EdrawMind AI Team"
 
-_DEFAULT_API_URL = (
-    "https://mindapi.edrawsoft.cn/api/ai/mind_agent/skills/markdown_to_mindmap"
-)
+_CN_API_URL = "https://mindapi.edrawsoft.cn/api/ai/mind_agent/skills/markdown_to_mindmap"
+_GLOBAL_API_URL = "https://api.edrawmind.com/api/ai/mind_agent/skills/markdown_to_mindmap"
 _REQUEST_TIMEOUT = 120  # seconds
+_PROBE_TIMEOUT = 3     # TCP connect timeout for region detection
+_REGION_CACHE_TTL = 86400  # 24 hours
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  ANSI colors (auto-disabled when output is not a TTY or NO_COLOR is set)
@@ -206,7 +210,7 @@ def validate_markdown(text: str) -> list[str]:
 def markdown_to_mindmap(
     text: str,
     *,
-    api_url: str = _DEFAULT_API_URL,
+    api_url: str = _CN_API_URL,
     api_key: str | None = None,
     layout_type: int | None = None,
     theme_style: int | None = None,
@@ -329,6 +333,101 @@ def _raise_from_http_error(exc: urllib.error.HTTPError) -> NoReturn:
         body.get("code", exc.code),
         body.get("msg", body.get("error", exc.reason or "Unknown error")),
     )
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  Region detection & caching
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+_REGION_CACHE_FILE = "region.json"
+
+
+def _get_cache_dir() -> Path:
+    """Return the platform-appropriate cache directory for EdrawMind."""
+    if sys.platform == "win32":
+        base = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
+    elif sys.platform == "darwin":
+        base = Path.home() / "Library" / "Caches"
+    else:  # Linux / other Unix — respect XDG spec
+        base = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
+    return base / "edrawmind"
+
+
+def _read_region_cache() -> str | None:
+    """Return the cached API URL if still valid, otherwise None."""
+    try:
+        cache_file = _get_cache_dir() / _REGION_CACHE_FILE
+        if not cache_file.is_file():
+            return None
+        data = json.loads(cache_file.read_text(encoding="utf-8"))
+        if time.time() - data.get("ts", 0) > _REGION_CACHE_TTL:
+            return None
+        return data.get("url") or None
+    except Exception:
+        return None
+
+
+def _write_region_cache(url: str) -> None:
+    """Persist the chosen API URL to cache. Silently ignores write errors."""
+    try:
+        cache_dir = _get_cache_dir()
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        (cache_dir / _REGION_CACHE_FILE).write_text(
+            json.dumps({"url": url, "ts": time.time()}),
+            encoding="utf-8",
+        )
+    except Exception:
+        pass
+
+
+def _probe_fastest_url() -> str:
+    """TCP-connect to both API hosts concurrently; return the faster one's URL.
+
+    Falls back to ``_CN_API_URL`` if both probes fail or time out.
+    """
+    candidates = [
+        (_CN_API_URL, "mindapi.edrawsoft.cn"),
+        (_GLOBAL_API_URL, "api.edrawmind.com"),
+    ]
+
+    winner: list[str | None] = [None]
+    failure_count: list[int] = [0]
+    done = threading.Event()
+    lock = threading.Lock()
+
+    def _probe(url: str, host: str) -> None:
+        try:
+            s = socket.create_connection((host, 443), timeout=_PROBE_TIMEOUT)
+            s.close()
+            with lock:
+                if winner[0] is None:
+                    winner[0] = url
+                    done.set()
+        except Exception:
+            with lock:
+                failure_count[0] += 1
+                if failure_count[0] == len(candidates):
+                    done.set()  # all probes failed — unblock
+
+    threads = [
+        threading.Thread(target=_probe, args=(url, host), daemon=True)
+        for url, host in candidates
+    ]
+    for t in threads:
+        t.start()
+    done.wait(timeout=_PROBE_TIMEOUT + 1)
+
+    return winner[0] or _CN_API_URL  # fallback if all probes failed
+
+
+def _resolve_api_url() -> str:
+    """Return the best API URL: cached result or a fresh probe."""
+    cached = _read_region_cache()
+    if cached:
+        return cached
+    url = _probe_fastest_url()
+    _write_region_cache(url)
+    return url
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -537,7 +636,17 @@ def _build_parser() -> argparse.ArgumentParser:
     conn.add_argument(
         "--api-url",
         metavar="URL",
-        help="API endpoint URL (default: built-in).",
+        help="API endpoint URL. Overrides --region.",
+    )
+    conn.add_argument(
+        "--region",
+        choices=["auto", "cn", "global"],
+        default="auto",
+        help=(
+            "API region: 'auto' (default) probes CN and Global endpoints and caches "
+            "the faster one for 24 h; 'cn' forces the mainland China endpoint; "
+            "'global' forces the international endpoint."
+        ),
     )
 
     # ── Output options ───────────────────────────────────────────────────────
@@ -607,7 +716,14 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     # ── Resolve API configuration ────────────────────────────────────────────
     api_key: str | None = args.api_key
-    api_url: str = args.api_url or _DEFAULT_API_URL
+    if args.api_url:
+        api_url: str = args.api_url
+    elif args.region == "cn":
+        api_url = _CN_API_URL
+    elif args.region == "global":
+        api_url = _GLOBAL_API_URL
+    else:  # auto
+        api_url = _resolve_api_url()
 
     # ── Read input ───────────────────────────────────────────────────────────
     text = _read_input(args.file)
@@ -627,7 +743,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     line_hand_drawn: bool | None = True if args.line_hand_drawn else None
 
     # ── Call API ─────────────────────────────────────────────────────────────
-    _info(f"Sending {len(text):,} characters to {api_url} …")
+    region_label = "auto → " if args.region == "auto" and not args.api_url else ""
+    _info(f"Sending {len(text):,} characters to {region_label}{api_url} …")
 
     try:
         result = markdown_to_mindmap(

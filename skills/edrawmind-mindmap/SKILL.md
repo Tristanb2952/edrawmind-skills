@@ -198,6 +198,7 @@ python ./scripts/edrawmind_cli.py [OPTIONS] <FILE | ->
 | `--background BG` | `background` | 背景 1–15 或 `#RRGGBB` |
 | `--line-hand-drawn` | `line_hand_drawn` | 连线手绘 |
 | `--fill STYLE` | `fill_hand_drawn` | 节点填充手绘 |
+| `--region {auto\|cn\|global}` | — | API 区域：`auto`（默认）自动探测最快节点并缓存 24h；`cn` 强制国内；`global` 强制海外 |
 | `--json` | — | 输出完整 JSON 响应 |
 
 **调用示例：**
