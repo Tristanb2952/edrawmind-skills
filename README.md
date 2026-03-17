@@ -1,36 +1,96 @@
 # EdrawMind Mindmap AI Skill
 
-> **Author:** EdrawMind AI Team · **Organization:** Wondershare EdrawMind  
+> **Author:** EdrawMind AI Team · **Organization:** Wondershare EdrawMind
 > **Version:** 1.0.0 · **License:** Proprietary © 2026 Wondershare EdrawMind. All rights reserved.
 
-An AI skill for AI Agents (OpenClaw, GitHub Copilot, Claude Code, etc.) that generates professional mind maps from Markdown content using the MCP tool `markdown_to_mindmap`.
+[中文版](README_CN.md)
+
+An AI skill for AI Agents (GitHub Copilot, Claude Code, etc.) that generates professional mind maps from Markdown content. Supports customizable layouts, themes, backgrounds, and hand-drawn styles.
 
 ---
 
 ## What This Skill Does
 
-The `edrawmind-mindmap` skill converts structured Markdown content into professional mind maps. After generation, it returns an online editing link and a thumbnail preview. The mind map can be edited in the **EdrawMind** web editor, or exported as `.emmx` for desktop use.
+The `edrawmind-mindmap` skill converts structured Markdown into professional mind maps via the EdrawMind HTTP API. It supports 12 layout types, 10 theme styles, 15 background presets, and multiple hand-drawn effects.
 
 ### Use Cases
 
 - Outlines and summaries
-- Meeting notes
-- Study notes and knowledge organization
+- Meeting notes and study notes
 - Project planning and task breakdown
-- Reading notes and knowledge frameworks
 - Code architecture visualization
+- Knowledge frameworks and reading notes
 
 ### What Problems It Solves
 
-- **No design skills needed** — just prepare structured Markdown text; the AI handles layout and rendering automatically.
+- **No design skills needed** — prepare Markdown text; the AI handles layout and rendering automatically.
+- **Rich customization** — choose from 12 layouts (mind map, timeline, fishbone, org chart, etc.), 10 themes, and hand-drawn styles.
 - **Instant online preview** — get an online editing link and thumbnail right after generation.
-- **Exportable and editable** — mind maps can be exported as `.emmx` for further editing in the EdrawMind desktop app.
+
+---
+
+## Project Structure
+
+```
+edrawmind-skills/
+├── pyproject.toml                  # Project config (uv / pip)
+├── scripts/
+│   └── build.py                    # Build script — packages skill into zip
+├── skills/
+│   └── edrawmind-mindmap/          # The skill directory
+│       ├── SKILL.md                # Skill definition (agent reads this)
+│       ├── license.txt
+│       ├── docs/                   # Internal dev docs (excluded from zip)
+│       ├── references/             # Reference docs (loaded on demand)
+│       │   ├── markdown-format.md
+│       │   ├── style-guide.md
+│       │   └── tool-reference.md
+│       └── scripts/
+│           └── edrawmind_cli.py    # CLI tool for HTTP API
+├── README.md
+└── README_CN.md
+```
 
 ---
 
 ## Installation
 
-Add the `skills/edrawmind-mindmap` directory from this repository to your AI Agent's skill directory.
+### From Release Zip
+
+1. Download `edrawmind-mindmap.zip` from [Releases](../../releases)
+2. Unzip into your AI Agent's skill directory:
+   - **GitHub Copilot**: `.github/skills/`
+   - **Claude Code**: `.claude/skills/`
+   - **General**: `.agents/skills/`
+
+### From Source
+
+```bash
+git clone <repo-url>
+cd edrawmind-skills
+```
+
+---
+
+## Build
+
+Package the skill into a distributable zip (excludes `docs/`):
+
+```bash
+# Using uv
+uv run python scripts/build.py
+
+# Or directly
+python scripts/build.py
+
+# Custom output path
+python scripts/build.py -o dist/custom-name.zip
+
+# Dry run — list files only
+python scripts/build.py --list
+```
+
+Output: `dist/edrawmind-mindmap.zip`
 
 ---
 
@@ -41,41 +101,22 @@ Add the `skills/edrawmind-mindmap` directory from this repository to your AI Age
 The skill activates automatically when you say things like:
 
 - *"Create a mind map for machine learning concepts"*
-- *"Convert this Markdown document into a mind map"*
+- *"Convert this Markdown into a mind map"*
 - *"Generate a mind map of the project architecture"*
 
-### MCP Tool Call
+### CLI Tool
 
-**Tool name:** `markdown_to_mindmap`
+The skill uses `edrawmind_cli.py` to call the EdrawMind HTTP API:
 
-**Parameters:**
+```bash
+# Basic
+python edrawmind_cli.py input.md
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `text` | string | Yes | Valid Markdown text. Must contain at least one level-1 or level-2 heading (`#` or `##`) and at least one list item (`-`, `*`, `+`, or `1.`). Plain prose text is not accepted. |
+# With layout, theme, and background
+python edrawmind_cli.py --layout 7 --theme 9 --background 4 timeline.md
 
-### Markdown Input Requirements
-
-- Must contain at least one heading (`#` or `##`)
-- Must contain at least one list item (`-`, `*`, `+`, or `1.`)
-- Use `#` for the root/central topic, `##` for first-level branches, `###` for second-level branches
-- Use `-` list items for child nodes; indented list items for deeper nodes
-- Keep node text concise (3-5 words recommended)
-- Recommended max depth: 4-5 levels, max ~80 nodes
-
-**Input example:**
-
-```markdown
-# Project Architecture
-## Frontend
-- React
-- TypeScript
-## Backend
-- Python
-- FastAPI
-## Database
-- PostgreSQL
-- Redis
+# Hand-drawn style
+python edrawmind_cli.py --line-hand-drawn --fill pencil --background 9 notes.md
 ```
 
 ### Response
@@ -91,25 +132,34 @@ The skill activates automatically when you say things like:
 }
 ```
 
-| Field | Type | Description |
-|---|---|---|
-| `file_url` | string | Online editing link for the mind map. **Must be shown to the user.** |
-| `thumbnail_url` | string | Thumbnail preview URL |
-| `extra_info.elapsed_ms` | number | Server-side generation time (ms) |
-| `extra_info.request_id` | string | Unique request identifier |
+| Field | Description |
+|---|---|
+| `file_url` | Online editing link. **Must be shown to the user.** |
+| `thumbnail_url` | Thumbnail preview URL |
 
-The tool also returns an image content block containing a thumbnail preview of the mind map, which can be displayed directly in chat interfaces.
+---
+
+## Styling Options
+
+| Parameter | Range | Description |
+|-----------|-------|-------------|
+| `--layout N` | 1–12 | Layout type (mind map, timeline, fishbone, org chart, etc.) |
+| `--theme N` | 1–10 | Theme style (default, knowledge, vivid, minimal, etc.) |
+| `--background BG` | 1–15 or `#RRGGBB` | Canvas background |
+| `--line-hand-drawn` | flag | Hand-drawn connection lines |
+| `--fill STYLE` | none/pencil/watercolor/charcoal/paint/graffiti | Node fill style |
+
+See [style-guide.md](skills/edrawmind-mindmap/references/style-guide.md) for detailed parameter descriptions.
 
 ---
 
 ## Important Notes
 
-- Content must be structured: plain text paragraphs cannot generate mind maps correctly; use headings and lists
-- The `#` heading becomes the central topic; use only one level-1 heading per mind map
-- Keep depth to 4-5 levels for best readability
-- For large documents (100+ headings), consider splitting into multiple mind maps by top-level sections
-- **Always show the returned `file_url` to the user** so they can access and edit the mind map
-- Display the returned thumbnail when image rendering is supported
+- Content must be structured Markdown with headings and lists
+- Use only one `#` heading as the root node
+- Recommended: max 5 levels deep, ~80 nodes
+- For large documents (100+ headings), split by chapter
+- **Always show the returned `file_url` to the user**
 
 ---
 
@@ -117,22 +167,20 @@ The tool also returns an image content block containing a thumbnail preview of t
 
 © 2026 Wondershare EdrawMind AI Team. All rights reserved.
 
-This skill and all associated resources are proprietary to Wondershare EdrawMind. Unauthorized copying, modification, distribution, or reverse engineering is strictly prohibited.
-
 See [`skills/edrawmind-mindmap/license.txt`](skills/edrawmind-mindmap/license.txt) for full license terms.
 
 ---
 
 ## FAQ
 
-**Q: Is the EdrawMind mindmap skill free to use?**  
-A: Yes — it is currently free of charge during the promotional period.
+**Q: Is the EdrawMind mindmap skill free to use?**
+A: Yes — it is currently free during the promotional period.
 
-**Q: What output formats are available?**  
-A: Generation returns an online editing link and a thumbnail preview. You can edit in the EdrawMind web editor or export as `.emmx` for desktop use.
+**Q: What output formats are available?**
+A: Returns an online editing link and thumbnail. Export as `.emmx` for desktop editing in EdrawMind.
 
-**Q: Is my data safe?**  
-A: Markdown content is transmitted over HTTPS. Do not include sensitive or personally identifiable information in your content.
+**Q: Is my data safe?**
+A: Markdown content is transmitted over HTTPS. Do not include sensitive information.
 
-**Q: How do I report a bug or request a feature?**  
-A: Send an email to 📧 **ws-business@wondershare.cn** describing the issue or feature request.
+**Q: How do I report a bug?**
+A: Email 📧 **ws-business@wondershare.cn**

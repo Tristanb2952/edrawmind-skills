@@ -1,0 +1,17 @@
+[project]
+name = "edrawmind-skills"
+version = "1.0.0"
+description = "EdrawMind AI Skills — build tools and packaging"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Proprietary"}
+authors = [
+    {name = "EdrawMind AI Team", email = "ws-business@wondershare.cn"},
+]
+
+[project.scripts]
+build-skill = "scripts.build:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

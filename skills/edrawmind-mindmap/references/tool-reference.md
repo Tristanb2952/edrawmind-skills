@@ -1,146 +1,112 @@
-# markdown_to_mindmap MCP 工具说明
+# edrawmind_cli.py CLI 工具参考
 
 ## 一、工具简介
 
-`markdown_to_mindmap` 是一个 MCP（Model Context Protocol）工具，用于将结构化的 Markdown 文本转换为专业的思维导图。生成后会返回可直接查看的在线编辑链接和缩略图预览。
+`edrawmind_cli.py` 是一个零依赖的 Python 命令行工具，封装了 EdrawMind（万兴脑图）Markdown-to-Mindmap HTTP API。读取 Markdown 文件或 stdin 输入，生成思维导图，返回在线编辑链接和缩略图预览。
 
-生成的思维导图可在 **EdrawMind**（万兴脑图）网页端打开编辑，也可导出为 `.emmx` 格式在桌面端使用。
+脚本位置：`./scripts/edrawmind_cli.py`
 
 ---
 
-## 二、调用规范
-
-### 工具名称
+## 二、命令格式
 
 ```
-markdown_to_mindmap
+python edrawmind_cli.py [OPTIONS] <FILE | ->
 ```
 
-### 参数说明
+**位置参数：**
+- `FILE` — Markdown 文件路径
+- `-` — 从 stdin 读取
 
-| 参数名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| `text` | string | 是 | 合法的 Markdown 文本，不能是纯文本散文。必须包含至少一个一级或二级标题（`#` 或 `##`），以及至少一个列表项（`-`、`*`、`+` 或 `1.`）。 |
+---
 
-### 返回数据格式
+## 三、完整参数说明
+
+### 风格选项
+
+| 选项 | 类型 | 说明 |
+|------|------|------|
+| `-l, --layout N` | int (1–12) | 布局类型，默认 `1`（MindMap 双向导图） |
+| `-t, --theme N` | int (1–10) | 主题风格 |
+| `-b, --background BG` | string | 背景：预设 `1`–`15` 或自定义 `"#RRGGBB"` |
+| `--line-hand-drawn` | flag | 启用连线手绘风格 |
+| `--fill STYLE` | string | 节点填充手绘：`none`/`pencil`/`watercolor`/`charcoal`/`paint`/`graffiti` |
+
+### 连接选项
+
+| 选项 | 说明 |
+|------|------|
+| `--api-key KEY` | API 密钥（默认取 `$EDRAWMIND_API_KEY`） |
+| `--api-url URL` | API 端点 URL（默认取 `$EDRAWMIND_API_URL` 或内置地址） |
+
+### 输出选项
+
+| 选项 | 说明 |
+|------|------|
+| `-o, --output PATH` | 将 JSON 响应保存到文件 |
+| `--json` | 输出完整 JSON 响应到 stdout |
+| `-q, --quiet` | 仅输出 file_url（无装饰） |
+| `--open` | 在默认浏览器中打开思维导图链接 |
+| `--no-validate` | 跳过 Markdown 输入校验 |
+| `-V, --version` | 显示版本号 |
+
+---
+
+## 四、返回数据格式
+
+成功时（默认输出）打印 `file_url` 到 stdout，详细信息到 stderr。
+
+使用 `--json` 时输出完整 JSON：
 
 ```json
 {
+  "file_url": "https://dev.master.cn/app/editor/{file_id}?from=yiyan",
+  "thumbnail_url": "https://mm-dev.edrawsoft.cn/api/mm_web/storage_s3/...",
   "extra_info": {
     "elapsed_ms": 962,
     "request_id": "aaf23d94f8d044e68ba2211213b922c7"
-  },
-  "file_url": "https://dev.master.cn/app/editor/{file_id}?from=yiyan",
-  "thumbnail_url": "https://mm-dev.edrawsoft.cn/api/mm_web/storage_s3/private/master-img+{file_id}_cover?expire=...&sign=..."
+  }
 }
 ```
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
+| `file_url` | string | 思维导图在线编辑链接，**必须展示给用户** |
+| `thumbnail_url` | string | 封面缩略图 URL（带签名和过期时间） |
 | `extra_info.elapsed_ms` | number | 服务端生成耗时（毫秒） |
 | `extra_info.request_id` | string | 请求唯一标识 |
-| `file_url` | string | 思维导图在线编辑链接，需展示给用户 |
-| `thumbnail_url` | string | 封面缩略图 URL（带签名和过期时间） |
-
-此外，工具还会返回一个 `output_image` 图片内容块，包含思维导图的预览缩略图，支持在聊天界面中直接展示。
 
 ---
 
-## 三、输入格式要求
+## 五、错误处理
 
-### 必须满足的条件
-
-1. **必须是合法的 Markdown 格式**，不能是纯文本散文。
-2. **必须包含至少一个一级或二级标题**（`#` 或 `##`）。
-3. **必须包含至少一个列表项**（使用 `-`、`*`、`+` 或 `1.` 等列表语法）。
-
-### Markdown 层级与思维导图节点的映射关系
-
-| Markdown 语法 | 思维导图层级 |
-|---------------|-------------|
-| `# 一级标题` | 中心主题（根节点） |
-| `## 二级标题` | 一级分支 |
-| `### 三级标题` | 二级分支 |
-| `- 列表项` | 子节点 |
-| `  - 缩进列表项` | 更深层子节点 |
-
-### 输入示例
-
-```markdown
-# 产品上线计划
-
-## 目标
-- 提升用户激活率
-- 提高用户留存
-
-## 时间线
-1. 调研阶段
-2. 开发阶段
-3. 发布上线
-```
-
----
-
-## 四、适用场景
-
-该工具特别适合将以下类型的结构化内容转换为思维导图：
-
-- 大纲与提纲
-- 会议纪要
-- 学习笔记与知识整理
-- SOP（标准操作流程）
-- 项目规划与任务拆解
-- 读书笔记与知识框架
-- 考试复习指导
-
----
-
-## 五、使用注意事项
-
-1. **内容必须结构化**：纯文本段落无法正确生成思维导图，必须使用标题和列表组织内容。
-2. **一级标题作为根节点**：Markdown 中的 `# 标题` 会成为思维导图的中心主题，建议每次只使用一个一级标题。
-3. **层级不宜过深**：建议控制在 4-5 层以内，层级过深会导致思维导图可读性下降。
-4. **单次内容量适中**：单次调用建议控制在合理范围内，内容过长可拆分为多份分别生成。
-5. **必须向用户展示返回的 `file_url` 和 `thumbnail_url`**：这是工具使用规范的硬性要求，确保用户能够访问和编辑生成的思维导图。
-6. **支持图片渲染时展示缩略图**：如果当前环境支持图片渲染，应直接展示返回的 image 内容块。
+| 场景 | 行为 |
+|------|------|
+| Markdown 无标题/列表 | 校验失败退出（使用 `--no-validate` 跳过） |
+| HTTP 429 限流 | 输出限流信息及重试等待时间 |
+| HTTP 4xx/5xx | 输出 API 错误码和消息 |
+| 网络连接失败 | 输出连接失败原因 |
 
 ---
 
 ## 六、调用示例
 
-### 请求
+```bash
+# 基本转换
+python edrawmind_cli.py roadmap.md
 
+# 指定布局、主题和背景
+python edrawmind_cli.py --layout 7 --theme 9 --background 4 timeline.md
+
+# 手绘素描风格
+python edrawmind_cli.py --line-hand-drawn --fill pencil --background 9 notes.md
+
+# 从 stdin 管道输入
+echo "# AI\n## ML\n- Deep Learning" | python edrawmind_cli.py -
+
+# 浏览器打开并保存 JSON
+python edrawmind_cli.py --open --json -o result.json input.md
+
+# 仅输出 URL（适合管道）
+python edrawmind_cli.py -q input.md
 ```
-工具：markdown_to_mindmap
-参数：
-  text: |
-    # 项目管理知识体系
-
-    ## 项目启动
-    - 明确项目目标
-    - 识别关键干系人
-    - 编写项目章程
-
-    ## 项目规划
-    - 制定WBS工作分解结构
-    - 编制进度计划
-    - 风险识别与应对策略
-
-    ## 项目执行与监控
-    - 任务分配与跟踪
-    - 定期状态汇报
-    - 变更控制管理
-
-    ## 项目收尾
-    - 成果验收与交付
-    - 经验教训总结
-    - 项目归档
-```
-
-### 响应
-
-返回包含：
-- 思维导图预览图片
-- `file_url`：在线编辑链接
-- `thumbnail_url`：封面缩略图链接
-- `extra_info`：请求元信息
