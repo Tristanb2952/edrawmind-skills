@@ -51,7 +51,7 @@ __version__ = "1.0.0"
 __author__ = "EdrawMind AI Team"
 
 _DEFAULT_API_URL = (
-    "https://dev.master.cn/api/ai/mind_agent/skills/markdown_to_mindmap"
+    "https://mindapi.edrawsoft.cn/api/ai/mind_agent/skills/markdown_to_mindmap"
 )
 _REQUEST_TIMEOUT = 120  # seconds
 
