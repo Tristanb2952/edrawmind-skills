@@ -33,6 +33,8 @@
 
 ```
 edrawmind-skills/
+├── build.bat                       # 构建入口 — Windows
+├── build.sh                        # 构建入口 — Linux / macOS
 ├── pyproject.toml                  # 项目配置（uv / pip）
 ├── scripts/
 │   └── build.py                    # 构建脚本 — 打包技能为 zip
@@ -77,17 +79,21 @@ cd edrawmind-skills
 将技能打包为可分发的 zip 文件（不含 `docs/`）：
 
 ```bash
-# 使用 uv
+# Windows
+build.bat
+
+# Linux / macOS
+./build.sh
+
+# 或通过 Python / uv 直接运行
+python scripts/build.py
 uv run python scripts/build.py
 
-# 或直接运行
-python scripts/build.py
-
 # 自定义输出路径
-python scripts/build.py -o dist/custom-name.zip
+build.bat -o dist/custom-name.zip
 
 # 仅列出文件（不打包）
-python scripts/build.py --list
+build.bat --list
 ```
 
 输出位置：`dist/edrawmind-mindmap.zip`

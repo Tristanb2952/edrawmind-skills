@@ -33,6 +33,8 @@ The `edrawmind-mindmap` skill converts structured Markdown into professional min
 
 ```
 edrawmind-skills/
+├── build.bat                       # Build entry — Windows
+├── build.sh                        # Build entry — Linux / macOS
 ├── pyproject.toml                  # Project config (uv / pip)
 ├── scripts/
 │   └── build.py                    # Build script — packages skill into zip
@@ -77,17 +79,21 @@ cd edrawmind-skills
 Package the skill into a distributable zip (excludes `docs/`):
 
 ```bash
-# Using uv
+# Windows
+build.bat
+
+# Linux / macOS
+./build.sh
+
+# Or via Python / uv directly
+python scripts/build.py
 uv run python scripts/build.py
 
-# Or directly
-python scripts/build.py
-
 # Custom output path
-python scripts/build.py -o dist/custom-name.zip
+build.bat -o dist/custom-name.zip
 
 # Dry run — list files only
-python scripts/build.py --list
+build.bat --list
 ```
 
 Output: `dist/edrawmind-mindmap.zip`
