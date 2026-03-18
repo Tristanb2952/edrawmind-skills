@@ -163,7 +163,7 @@ python edrawmind_cli.py --line-hand-drawn --fill pencil --background 9 notes.md
 
 - 内容必须是结构化 Markdown，包含标题和列表
 - 使用一个 `#` 标题作为根节点
-- 建议最大深度 5 层，约 80 个节点
+- 建议最大深度 5 层，约 150 个节点
 - 大型文档（100+ 个标题）建议按章节拆分
 - **务必向用户展示返回的 `file_url`**
 

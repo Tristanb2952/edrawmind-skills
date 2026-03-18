@@ -32,9 +32,12 @@ import argparse
 import json
 import os
 import re
+import socket
 import ssl
 import sys
 import textwrap
+import threading
+import time
 import urllib.error
 import urllib.request
 import webbrowser
@@ -50,10 +53,11 @@ from typing import NoReturn, Optional, Sequence
 __version__ = "1.0.0"
 __author__ = "EdrawMind AI Team"
 
-_DEFAULT_API_URL = (
-    "https://mindapi.edrawsoft.cn/api/ai/mind_agent/skills/markdown_to_mindmap"
-)
+_CN_API_URL = "https://mindapi.edrawsoft.cn/api/ai/mind_agent/skills/markdown_to_mindmap"
+_GLOBAL_API_URL = "https://api.edrawmind.com/api/ai/mind_agent/skills/markdown_to_mindmap"
 _REQUEST_TIMEOUT = 120  # seconds
+_PROBE_TIMEOUT = 3     # TCP connect timeout for region detection
+_REGION_CACHE_TTL = 86400  # 24 hours
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  ANSI colors (auto-disabled when output is not a TTY or NO_COLOR is set)
@@ -189,10 +193,10 @@ def validate_markdown(text: str) -> list[str]:
     node_count = sum(
         1 for ln in lines if ln.lstrip().startswith("#") or _RE_LIST_ITEM.match(ln)
     )
-    if node_count > 80:
+    if node_count > 150:
         warnings.append(
             f"Found ~{node_count} nodes. "
-            "Consider splitting into multiple maps (recommended ≤ 80)."
+            "Consider splitting into multiple maps (recommended ≤ 150)."
         )
 
     return warnings
@@ -206,7 +210,7 @@ def validate_markdown(text: str) -> list[str]:
 def markdown_to_mindmap(
     text: str,
     *,
-    api_url: str = _DEFAULT_API_URL,
+    api_url: str = _CN_API_URL,
     api_key: str | None = None,
     layout_type: int | None = None,
     theme_style: int | None = None,
@@ -329,6 +333,111 @@ def _raise_from_http_error(exc: urllib.error.HTTPError) -> NoReturn:
         body.get("code", exc.code),
         body.get("msg", body.get("error", exc.reason or "Unknown error")),
     )
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  Region detection & caching
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+_REGION_CACHE_FILE = "region.json"
+
+
+def _get_cache_dir() -> Path:
+    """Return the platform-appropriate cache directory for EdrawMind."""
+    if sys.platform == "win32":
+        base = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
+    elif sys.platform == "darwin":
+        base = Path.home() / "Library" / "Caches"
+    else:  # Linux / other Unix — respect XDG spec
+        base = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
+    return base / "edrawmind"
+
+
+def _read_region_cache() -> str | None:
+    """Return the cached API URL if still valid, otherwise None."""
+    try:
+        cache_file = _get_cache_dir() / _REGION_CACHE_FILE
+        if not cache_file.is_file():
+            return None
+        data = json.loads(cache_file.read_text(encoding="utf-8"))
+        if time.time() - data.get("ts", 0) > _REGION_CACHE_TTL:
+            return None
+        return data.get("url") or None
+    except Exception:
+        return None
+
+
+def _write_region_cache(url: str) -> None:
+    """Persist the chosen API URL to cache. Silently ignores write errors."""
+    try:
+        cache_dir = _get_cache_dir()
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        (cache_dir / _REGION_CACHE_FILE).write_text(
+            json.dumps({"url": url, "ts": time.time()}),
+            encoding="utf-8",
+        )
+    except Exception:
+        pass
+
+
+def _clear_region_cache() -> None:
+    """Remove the cached region file so the next call re-probes."""
+    try:
+        cache_file = _get_cache_dir() / _REGION_CACHE_FILE
+        if cache_file.is_file():
+            cache_file.unlink()
+    except Exception:
+        pass
+
+
+def _probe_fastest_url() -> str:
+    """TCP-connect to both API hosts concurrently; return the faster one's URL.
+
+    Falls back to ``_CN_API_URL`` if both probes fail or time out.
+    """
+    candidates = [
+        (_CN_API_URL, "mindapi.edrawsoft.cn"),
+        (_GLOBAL_API_URL, "api.edrawmind.com"),
+    ]
+
+    winner: list[str | None] = [None]
+    failure_count: list[int] = [0]
+    done = threading.Event()
+    lock = threading.Lock()
+
+    def _probe(url: str, host: str) -> None:
+        try:
+            s = socket.create_connection((host, 443), timeout=_PROBE_TIMEOUT)
+            s.close()
+            with lock:
+                if winner[0] is None:
+                    winner[0] = url
+                    done.set()
+        except Exception:
+            with lock:
+                failure_count[0] += 1
+                if failure_count[0] == len(candidates):
+                    done.set()  # all probes failed — unblock
+
+    threads = [
+        threading.Thread(target=_probe, args=(url, host), daemon=True)
+        for url, host in candidates
+    ]
+    for t in threads:
+        t.start()
+    done.wait(timeout=_PROBE_TIMEOUT + 1)
+
+    return winner[0] or _CN_API_URL  # fallback if all probes failed
+
+
+def _resolve_api_url() -> str:
+    """Return the best API URL: cached result or a fresh probe."""
+    cached = _read_region_cache()
+    if cached:
+        return cached
+    url = _probe_fastest_url()
+    _write_region_cache(url)
+    return url
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -457,8 +566,8 @@ def _build_parser() -> argparse.ArgumentParser:
         description=textwrap.dedent("""\
             Convert Markdown to a professional mind map via the EdrawMind API.
 
-            Reads Markdown from a file or stdin (-), sends it to the EdrawMind
-            API, and prints the online editing URL.
+            Reads Markdown from --text, a file, or stdin (-), sends it to the
+            EdrawMind API, and prints the online editing URL.
         """),
         epilog=textwrap.dedent(f"""\
             layout types (--layout):
@@ -471,11 +580,11 @@ def _build_parser() -> argparse.ArgumentParser:
               {_FILL_HELP}
 
             examples:
+              %(prog)s --text "# AI\\n## ML\\n- Deep Learning"
+              %(prog)s --text "# AI\\n## ML\\n- DL" --layout 7 --theme 9
               %(prog)s notes.md
-              %(prog)s --layout 7 --theme 9 timeline.md
               %(prog)s --line-hand-drawn --fill pencil --background 9 sketch.md
               echo "# AI\\n## ML\\n- DL" | %(prog)s -
-              %(prog)s --open --json -o result.json input.md
         """),
 
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -484,7 +593,17 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "file",
         metavar="FILE",
-        help='Markdown file to convert, or "-" to read from stdin.',
+        nargs="?",
+        default=None,
+        help='Markdown file to convert, or "-" to read from stdin. '
+             'Not needed when --text is used.',
+    )
+    parser.add_argument(
+        "--text",
+        metavar="MARKDOWN",
+        dest="text",
+        help='Inline Markdown content. Supports literal "\\n" for newlines. '
+             'Mutually exclusive with FILE.',
     )
 
     # ── Styling options ──────────────────────────────────────────────────────
@@ -537,7 +656,17 @@ def _build_parser() -> argparse.ArgumentParser:
     conn.add_argument(
         "--api-url",
         metavar="URL",
-        help="API endpoint URL (default: built-in).",
+        help="API endpoint URL. Overrides --region.",
+    )
+    conn.add_argument(
+        "--region",
+        choices=["auto", "cn", "global"],
+        default="auto",
+        help=(
+            "API region: 'auto' (default) probes CN and Global endpoints and caches "
+            "the faster one for 24 h; 'cn' forces the mainland China endpoint; "
+            "'global' forces the international endpoint."
+        ),
     )
 
     # ── Output options ───────────────────────────────────────────────────────
@@ -607,10 +736,26 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     # ── Resolve API configuration ────────────────────────────────────────────
     api_key: str | None = args.api_key
-    api_url: str = args.api_url or _DEFAULT_API_URL
+    if args.api_url:
+        api_url: str = args.api_url
+    elif args.region == "cn":
+        api_url = _CN_API_URL
+    elif args.region == "global":
+        api_url = _GLOBAL_API_URL
+    else:  # auto
+        api_url = _resolve_api_url()
 
     # ── Read input ───────────────────────────────────────────────────────────
-    text = _read_input(args.file)
+    if args.text and args.file:
+        _die("Cannot use both --text and FILE. Choose one.")
+    if args.text:
+        text = args.text.replace("\\n", "\n")
+        if not text.strip():
+            _die("--text content is empty.")
+    elif args.file:
+        text = _read_input(args.file)
+    else:
+        _die("No input provided. Use --text or specify a FILE (or - for stdin).")
 
     # ── Validate ─────────────────────────────────────────────────────────────
     if not args.no_validate:
@@ -627,12 +772,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     line_hand_drawn: bool | None = True if args.line_hand_drawn else None
 
     # ── Call API ─────────────────────────────────────────────────────────────
-    _info(f"Sending {len(text):,} characters to {api_url} …")
+    is_auto = args.region == "auto" and not args.api_url
+    region_label = "auto → " if is_auto else ""
+    _info(f"Sending {len(text):,} characters to {region_label}{api_url} …")
 
-    try:
-        result = markdown_to_mindmap(
+    def _call_api(url: str) -> MindmapResult:
+        return markdown_to_mindmap(
             text,
-            api_url=api_url,
+            api_url=url,
             api_key=api_key,
             layout_type=args.layout_type,
             theme_style=args.theme_style,
@@ -641,13 +788,31 @@ def main(argv: Sequence[str] | None = None) -> int:
             fill_hand_drawn=args.fill_hand_drawn,
             insecure=args.insecure,
         )
+
+    try:
+        result = _call_api(api_url)
     except RateLimitError as exc:
         retry = f" Retry after {exc.retry_after}s." if exc.retry_after else ""
         _die(f"Rate limited ({exc.code}).{retry}")
     except APIError as exc:
         _die(f"API error: {exc}")
     except EdrawMindError as exc:
-        _die(str(exc))
+        if not is_auto:
+            _die(str(exc))
+        # Auto mode: cached endpoint may be stale — clear cache and retry once.
+        _warn(f"Connection failed ({exc}), re-probing endpoints …")
+        _clear_region_cache()
+        api_url = _resolve_api_url()
+        _info(f"Retrying with {api_url} …")
+        try:
+            result = _call_api(api_url)
+        except RateLimitError as exc2:
+            retry = f" Retry after {exc2.retry_after}s." if exc2.retry_after else ""
+            _die(f"Rate limited ({exc2.code}).{retry}")
+        except APIError as exc2:
+            _die(f"API error: {exc2}")
+        except EdrawMindError as exc2:
+            _die(str(exc2))
 
     # ── Output ───────────────────────────────────────────────────────────────
     response_dict = asdict(result)

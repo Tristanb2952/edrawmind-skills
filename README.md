@@ -163,7 +163,7 @@ See [style-guide.md](skills/edrawmind-mindmap/references/style-guide.md) for det
 
 - Content must be structured Markdown with headings and lists
 - Use only one `#` heading as the root node
-- Recommended: max 5 levels deep, ~80 nodes
+- Recommended: max 5 levels deep, ~150 nodes
 - For large documents (100+ headings), split by chapter
 - **Always show the returned `file_url` to the user**
 

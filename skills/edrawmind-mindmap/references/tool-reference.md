@@ -2,7 +2,7 @@
 
 ## 一、工具简介
 
-`edrawmind_cli.py` 是一个零依赖的 Python 命令行工具，封装了 EdrawMind（万兴脑图）Markdown-to-Mindmap HTTP API。读取 Markdown 文件或 stdin 输入，生成思维导图，返回在线编辑链接和缩略图预览。
+`edrawmind_cli.py` 是一个零依赖的 Python 命令行工具，封装了 EdrawMind（万兴脑图）Markdown-to-Mindmap HTTP API。通过 `--text` 参数直接传入 Markdown 内容（也支持文件和 stdin），生成思维导图，返回在线编辑链接和缩略图预览。
 
 脚本位置：`./scripts/edrawmind_cli.py`
 
@@ -11,10 +11,12 @@
 ## 二、命令格式
 
 ```
+python edrawmind_cli.py --text "<MARKDOWN>" [OPTIONS]
 python edrawmind_cli.py [OPTIONS] <FILE | ->
 ```
 
-**位置参数：**
+**输入方式（三选一）：**
+- `--text MARKDOWN` — 直接传入 Markdown 内容，换行用 `\n` 表示（**推荐**）
 - `FILE` — Markdown 文件路径
 - `-` — 从 stdin 读取
 
@@ -37,7 +39,8 @@ python edrawmind_cli.py [OPTIONS] <FILE | ->
 | 选项 | 说明 |
 |------|------|
 | `--api-key KEY` | API 密钥（默认取 `$EDRAWMIND_API_KEY`） |
-| `--api-url URL` | API 端点 URL（默认取 `$EDRAWMIND_API_URL` 或内置地址） |
+| `--api-url URL` | API 端点 URL，覆盖 `--region` |
+| `--region {auto\|cn\|global}` | API 区域：`auto`（默认）自动探测最快节点并缓存 24h；`cn` 强制国内；`global` 强制海外 |
 
 ### 输出选项
 
@@ -92,21 +95,21 @@ python edrawmind_cli.py [OPTIONS] <FILE | ->
 ## 六、调用示例
 
 ```bash
-# 基本转换
-python edrawmind_cli.py roadmap.md
+# 基本转换（推荐用 --text）
+python edrawmind_cli.py --text "# AI技术\n## 机器学习\n- 监督学习\n- 无监督学习\n## 深度学习\n- CNN\n- Transformer"
 
 # 指定布局、主题和背景
-python edrawmind_cli.py --layout 7 --theme 9 --background 4 timeline.md
+python edrawmind_cli.py --text "# 项目管理\n## 阶段一\n- 需求分析\n## 阶段二\n- 开发联调" --layout 7 --theme 3
 
 # 手绘素描风格
-python edrawmind_cli.py --line-hand-drawn --fill pencil --background 9 notes.md
+python edrawmind_cli.py --text "# 读书笔记\n## 第一章\n- 要点一\n- 要点二" --line-hand-drawn --fill pencil --background 9
 
-# 从 stdin 管道输入
+# 从文件读取（仍支持）
+python edrawmind_cli.py roadmap.md
+
+# 从 stdin 管道输入（仍支持）
 echo "# AI\n## ML\n- Deep Learning" | python edrawmind_cli.py -
 
-# 浏览器打开并保存 JSON
-python edrawmind_cli.py --open --json -o result.json input.md
-
 # 仅输出 URL（适合管道）
-python edrawmind_cli.py -q input.md
+python edrawmind_cli.py --text "# Test\n## A\n- B" -q
 ```
