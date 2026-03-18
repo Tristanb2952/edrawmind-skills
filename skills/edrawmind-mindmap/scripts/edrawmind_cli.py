@@ -193,10 +193,10 @@ def validate_markdown(text: str) -> list[str]:
     node_count = sum(
         1 for ln in lines if ln.lstrip().startswith("#") or _RE_LIST_ITEM.match(ln)
     )
-    if node_count > 80:
+    if node_count > 150:
         warnings.append(
             f"Found ~{node_count} nodes. "
-            "Consider splitting into multiple maps (recommended ≤ 80)."
+            "Consider splitting into multiple maps (recommended ≤ 150)."
         )
 
     return warnings
@@ -376,6 +376,16 @@ def _write_region_cache(url: str) -> None:
             json.dumps({"url": url, "ts": time.time()}),
             encoding="utf-8",
         )
+    except Exception:
+        pass
+
+
+def _clear_region_cache() -> None:
+    """Remove the cached region file so the next call re-probes."""
+    try:
+        cache_file = _get_cache_dir() / _REGION_CACHE_FILE
+        if cache_file.is_file():
+            cache_file.unlink()
     except Exception:
         pass
 
@@ -762,13 +772,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     line_hand_drawn: bool | None = True if args.line_hand_drawn else None
 
     # ── Call API ─────────────────────────────────────────────────────────────
-    region_label = "auto → " if args.region == "auto" and not args.api_url else ""
+    is_auto = args.region == "auto" and not args.api_url
+    region_label = "auto → " if is_auto else ""
     _info(f"Sending {len(text):,} characters to {region_label}{api_url} …")
 
-    try:
-        result = markdown_to_mindmap(
+    def _call_api(url: str) -> MindmapResult:
+        return markdown_to_mindmap(
             text,
-            api_url=api_url,
+            api_url=url,
             api_key=api_key,
             layout_type=args.layout_type,
             theme_style=args.theme_style,
@@ -777,13 +788,31 @@ def main(argv: Sequence[str] | None = None) -> int:
             fill_hand_drawn=args.fill_hand_drawn,
             insecure=args.insecure,
         )
+
+    try:
+        result = _call_api(api_url)
     except RateLimitError as exc:
         retry = f" Retry after {exc.retry_after}s." if exc.retry_after else ""
         _die(f"Rate limited ({exc.code}).{retry}")
     except APIError as exc:
         _die(f"API error: {exc}")
     except EdrawMindError as exc:
-        _die(str(exc))
+        if not is_auto:
+            _die(str(exc))
+        # Auto mode: cached endpoint may be stale — clear cache and retry once.
+        _warn(f"Connection failed ({exc}), re-probing endpoints …")
+        _clear_region_cache()
+        api_url = _resolve_api_url()
+        _info(f"Retrying with {api_url} …")
+        try:
+            result = _call_api(api_url)
+        except RateLimitError as exc2:
+            retry = f" Retry after {exc2.retry_after}s." if exc2.retry_after else ""
+            _die(f"Rate limited ({exc2.code}).{retry}")
+        except APIError as exc2:
+            _die(f"API error: {exc2}")
+        except EdrawMindError as exc2:
+            _die(str(exc2))
 
     # ── Output ───────────────────────────────────────────────────────────────
     response_dict = asdict(result)
